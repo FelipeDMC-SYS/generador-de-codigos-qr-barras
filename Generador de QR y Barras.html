@@ -1,0 +1,660 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Generador de QR y Barras</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: controles a la izquierda, vista previa fija a la derecha; en pantallas angostas la vista previa va arriba. */
+:root{
+  --bg:#EEF2F0; --surface:#FFFFFF; --surface-2:#E2E9E5; --line:#C9D5CF;
+  --fg:#112019; --muted:#4F6158;
+  --accent:#0E6B5B; --accent-fg:#FFFFFF;
+  --warn:#8A5200; --warn-bg:#FFF1D6;
+  --err:#A32121; --err-bg:#FDE4E1; --ok:#146B3A;
+  --font-display:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1512; --surface:#16201B; --surface-2:#1E2B25; --line:#2C3B34;
+    --fg:#E5EEE9; --muted:#9BB0A5;
+    --accent:#4CC2A6; --accent-fg:#06201A;
+    --warn:#F0B64F; --warn-bg:#2E2410;
+    --err:#FF8A80; --err-bg:#331512; --ok:#6FD39A;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1512; --surface:#16201B; --surface-2:#1E2B25; --line:#2C3B34;
+  --fg:#E5EEE9; --muted:#9BB0A5;
+  --accent:#4CC2A6; --accent-fg:#06201A;
+  --warn:#F0B64F; --warn-bg:#2E2410;
+  --err:#FF8A80; --err-bg:#331512; --ok:#6FD39A;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--fg);
+  font-family:var(--font-body); font-size:15px; line-height:1.5;
+  padding-block:22px 48px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap{max-width:1080px; margin:0 auto}
+.top{display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:22px}
+.top > div{min-width:0}
+h1{font-family:var(--font-display); font-weight:600; font-size:1.65rem; line-height:1.15; letter-spacing:-0.015em; margin:0; text-wrap:balance}
+.lead{margin:6px 0 0; color:var(--muted); max-width:52ch}
+.tabs{display:inline-flex; background:var(--surface-2); border-radius:8px; padding:3px; gap:2px}
+.tab{border:0; background:transparent; color:var(--muted); font:600 .875rem var(--font-body); padding:9px 15px; border-radius:6px; cursor:pointer}
+.tab[aria-selected="true"]{background:var(--surface); color:var(--fg); box-shadow:0 0 0 1px var(--line)}
+
+.view{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,400px); gap:28px; align-items:start}
+.controls{display:flex; flex-direction:column; min-width:0}
+.group{display:grid; gap:14px; padding:20px 0; border-top:1px solid var(--line); min-width:0}
+.group:first-child{border-top:0; padding-top:0}
+h2{margin:0; font-size:.72rem; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
+.fields,.row{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; min-width:0}
+.field{display:grid; gap:6px; min-width:0; align-content:start}
+.field.wide{grid-column:1 / -1}
+.lbl{display:flex; justify-content:space-between; gap:8px; font-size:.8125rem; font-weight:500}
+.lbl output{font-family:var(--font-mono); font-weight:400; color:var(--muted)}
+input[type=text],input[type=tel],input[type=email],textarea,select{
+  width:100%; font:inherit; color:var(--fg); background:var(--surface);
+  border:1px solid var(--line); border-radius:6px; padding:9px 10px; min-height:40px;
+}
+textarea{resize:vertical; min-height:84px}
+input[type=color]{width:100%; height:40px; padding:3px; border:1px solid var(--line); border-radius:6px; background:var(--surface); cursor:pointer}
+input[type=range]{width:100%; accent-color:var(--accent)}
+input[type=file]{font:inherit; font-size:.8125rem; color:var(--muted); max-width:100%}
+.mono{font-family:var(--font-mono)}
+.check{display:flex; align-items:center; gap:8px; font-size:.875rem; min-height:40px}
+input[type=checkbox]{width:18px; height:18px; accent-color:var(--accent); margin:0}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.note{margin:0; font-size:.8125rem; color:var(--muted)}
+.logo-line{display:flex; flex-wrap:wrap; align-items:center; gap:10px}
+.logo-name{font-size:.8125rem; color:var(--muted); overflow-wrap:anywhere}
+
+.stage{position:sticky; top:16px; min-width:0}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; display:grid; gap:14px; min-width:0}
+.canvas-wrap{background:var(--surface-2); border-radius:8px; padding:16px; display:grid; place-items:center; min-height:220px; overflow:auto}
+.canvas-wrap svg{display:block; max-width:100%; height:auto}
+.empty{color:var(--muted); text-align:center; font-size:.875rem; max-width:30ch; margin:0}
+.meta{font-family:var(--font-mono); font-size:.75rem; color:var(--muted); min-height:1.1rem; overflow-wrap:anywhere}
+.warn{list-style:none; margin:0; padding:0; display:grid; gap:6px}
+.warn li{background:var(--warn-bg); color:var(--warn); border-radius:6px; padding:8px 10px; font-size:.8125rem}
+.warn li.err{background:var(--err-bg); color:var(--err)}
+.btns{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
+.btn{font:600 .875rem var(--font-body); padding:10px 12px; min-height:42px; border-radius:6px; border:1px solid var(--line); background:var(--surface); color:var(--fg); cursor:pointer}
+.btn.primary{background:var(--accent); color:var(--accent-fg); border-color:var(--accent)}
+.btn.small{min-height:34px; padding:6px 10px; font-size:.8125rem}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+.status{min-height:1.25rem; font-size:.8125rem; color:var(--muted)}
+.status.ok{color:var(--ok)}
+.status.err{color:var(--err)}
+
+@media (max-width:820px){
+  .view{grid-template-columns:minmax(0,1fr)}
+  .stage{position:static; order:-1}
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important} }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Generador de QR y Barras</h1>
+      <p class="lead">Crea códigos a tu medida, míralos al instante y guárdalos como imagen.</p>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Tipo de código">
+      <button class="tab" id="tab-qr" role="tab" aria-selected="true" aria-controls="view-qr" type="button">Código QR</button>
+      <button class="tab" id="tab-barras" role="tab" aria-selected="false" aria-controls="view-barras" type="button">Código de barras</button>
+    </div>
+  </header>
+
+  <!-- ===================== QR ===================== -->
+  <section class="view" id="view-qr" role="tabpanel" aria-labelledby="tab-qr">
+    <div class="controls">
+      <div class="group">
+        <h2>Contenido</h2>
+        <div class="field">
+          <label class="lbl" for="qr-type">¿Qué guarda el código?</label>
+          <select id="qr-type">
+            <option value="url">Enlace web (URL)</option>
+            <option value="text">Texto libre</option>
+            <option value="wifi">Red WiFi</option>
+            <option value="whatsapp">Mensaje de WhatsApp</option>
+            <option value="email">Correo electrónico</option>
+            <option value="tel">Llamada telefónica</option>
+            <option value="sms">Mensaje SMS</option>
+            <option value="vcard">Tarjeta de contacto (vCard)</option>
+            <option value="geo">Ubicación (coordenadas)</option>
+          </select>
+        </div>
+        <div class="fields" id="qr-fields"></div>
+      </div>
+
+      <div class="group">
+        <h2>Estilo</h2>
+        <div class="row">
+          <div class="field"><label class="lbl" for="dots">Puntos</label>
+            <select id="dots" data-qr="dots">
+              <option value="square">Cuadrados</option>
+              <option value="dots">Círculos</option>
+              <option value="rounded">Redondeados</option>
+              <option value="extra-rounded">Muy redondeados</option>
+              <option value="classy">Clásico</option>
+              <option value="classy-rounded">Clásico redondeado</option>
+            </select></div>
+          <div class="field"><label class="lbl" for="csq">Marco de esquinas</label>
+            <select id="csq" data-qr="csq">
+              <option value="square">Cuadrado</option>
+              <option value="extra-rounded">Redondeado</option>
+              <option value="dot">Circular</option>
+            </select></div>
+          <div class="field"><label class="lbl" for="cdot">Centro de esquinas</label>
+            <select id="cdot" data-qr="cdot">
+              <option value="square">Cuadrado</option>
+              <option value="dot">Circular</option>
+            </select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label class="lbl" for="fg">Color de puntos</label><input type="color" id="fg" data-qr="fg" value="#000000"></div>
+          <div class="field"><label class="lbl" for="eye">Color de esquinas</label><input type="color" id="eye" data-qr="eye" value="#000000"></div>
+          <div class="field"><label class="lbl" for="bg">Color de fondo</label><input type="color" id="bg" data-qr="bg" value="#ffffff"></div>
+        </div>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="grad" data-qr="grad"> Degradado en los puntos</label>
+          <div class="field" id="fg2-field" hidden><label class="lbl" for="fg2">Segundo color</label><input type="color" id="fg2" data-qr="fg2" value="#0e6b5b"></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Logo en el centro</h2>
+        <div class="logo-line">
+          <input type="file" id="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" aria-label="Elegir logo">
+          <button type="button" class="btn small" id="logo-clear" hidden>Quitar logo</button>
+        </div>
+        <div class="logo-name" id="logo-name"></div>
+        <div class="field"><label class="lbl" for="logoSize">Tamaño del logo <output id="out-logoSize">30 %</output></label>
+          <input type="range" id="logoSize" data-qr="logoSize" min="10" max="50" step="1" value="30"></div>
+        <p class="note">Con logo el código usa corrección de errores alta (H) para seguir siendo legible.</p>
+      </div>
+
+      <div class="group">
+        <h2>Salida</h2>
+        <div class="field"><label class="lbl" for="size">Tamaño de la imagen <output id="out-size">1024 px</output></label>
+          <input type="range" id="size" data-qr="size" min="256" max="2048" step="64" value="1024"></div>
+        <div class="field"><label class="lbl" for="margin">Margen <output id="out-margin">16 px</output></label>
+          <input type="range" id="margin" data-qr="margin" min="0" max="48" step="2" value="16"></div>
+        <div class="field"><label class="lbl" for="ecl">Corrección de errores</label>
+          <select id="ecl" data-qr="ecl">
+            <option value="L">L · 7 % (más datos)</option>
+            <option value="M" selected>M · 15 %</option>
+            <option value="Q">Q · 25 %</option>
+            <option value="H">H · 30 % (más resistente)</option>
+          </select></div>
+        <p class="note">El tamaño se aplica a PNG y JPG. El SVG se puede ampliar sin perder calidad.</p>
+      </div>
+    </div>
+
+    <aside class="stage" aria-label="Vista previa del QR">
+      <div class="card">
+        <div class="canvas-wrap">
+          <div id="qr-canvas"></div>
+          <p class="empty" id="qr-empty" hidden>Completa el contenido de la izquierda para ver tu código QR.</p>
+        </div>
+        <div class="meta" id="qr-meta"></div>
+        <ul class="warn" id="qr-warn"></ul>
+        <div class="btns">
+          <button type="button" class="btn primary" data-save="qr:png" disabled>Guardar PNG</button>
+          <button type="button" class="btn" data-save="qr:svg" disabled>Guardar SVG</button>
+          <button type="button" class="btn" data-save="qr:jpg" disabled>Guardar JPG</button>
+        </div>
+        <div class="status" id="qr-status" role="status" aria-live="polite"></div>
+        <p class="note" id="qr-nodl" hidden>Guardar archivos no está disponible en esta vista. Abre el artefacto en una pestaña del navegador para descargar.</p>
+      </div>
+    </aside>
+  </section>
+
+  <!-- ===================== BARRAS ===================== -->
+  <section class="view" id="view-barras" role="tabpanel" aria-labelledby="tab-barras" hidden>
+    <div class="controls">
+      <div class="group">
+        <h2>Contenido</h2>
+        <div class="field"><label class="lbl" for="bc-format">Formato</label>
+          <select id="bc-format" data-bc="format">
+            <option value="CODE128">Code 128 (texto y números)</option>
+            <option value="CODE39">Code 39</option>
+            <option value="EAN13">EAN-13 (productos)</option>
+            <option value="EAN8">EAN-8</option>
+            <option value="UPC">UPC-A</option>
+            <option value="ITF14">ITF-14 (cajas)</option>
+            <option value="ITF">ITF (solo dígitos)</option>
+            <option value="MSI">MSI</option>
+            <option value="pharmacode">Pharmacode</option>
+            <option value="codabar">Codabar</option>
+          </select>
+          <p class="note" id="bc-hint"></p></div>
+        <div class="field"><label class="lbl" for="bc-value">Valor del código</label>
+          <input type="text" id="bc-value" class="mono" data-bc="value" value="ABC-123456" autocomplete="off" spellcheck="false"></div>
+      </div>
+
+      <div class="group">
+        <h2>Apariencia</h2>
+        <div class="row">
+          <div class="field"><label class="lbl" for="bc-width">Grosor de barra <output id="out-bc-width">3</output></label>
+            <input type="range" id="bc-width" data-bc="width" min="1" max="6" step="1" value="3"></div>
+          <div class="field"><label class="lbl" for="bc-height">Altura <output id="out-bc-height">100</output></label>
+            <input type="range" id="bc-height" data-bc="height" min="40" max="300" step="5" value="100"></div>
+          <div class="field"><label class="lbl" for="bc-margin">Margen <output id="out-bc-margin">10</output></label>
+            <input type="range" id="bc-margin" data-bc="margin" min="0" max="40" step="2" value="10"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label class="lbl" for="bc-fg">Color de barras</label><input type="color" id="bc-fg" data-bc="fg" value="#000000"></div>
+          <div class="field"><label class="lbl" for="bc-bg">Color de fondo</label><input type="color" id="bc-bg" data-bc="bg" value="#ffffff"></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Texto bajo las barras</h2>
+        <label class="check"><input type="checkbox" id="bc-show" data-bc="show" checked> Mostrar texto</label>
+        <div class="field"><label class="lbl" for="bc-text">Texto personalizado</label>
+          <input type="text" id="bc-text" data-bc="text" placeholder="Igual al valor del código" autocomplete="off"></div>
+        <div class="row">
+          <div class="field"><label class="lbl" for="bc-font">Tamaño de letra <output id="out-bc-font">20</output></label>
+            <input type="range" id="bc-font" data-bc="font" min="10" max="40" step="1" value="20"></div>
+          <div class="field"><label class="lbl" for="bc-pos">Posición</label>
+            <select id="bc-pos" data-bc="pos"><option value="bottom">Abajo</option><option value="top">Arriba</option></select></div>
+          <div class="field"><label class="lbl" for="bc-align">Alineación</label>
+            <select id="bc-align" data-bc="align"><option value="center">Centro</option><option value="left">Izquierda</option><option value="right">Derecha</option></select></div>
+        </div>
+        <p class="note">PNG y JPG se guardan con resolución triple para imprimir con nitidez.</p>
+      </div>
+    </div>
+
+    <aside class="stage" aria-label="Vista previa del código de barras">
+      <div class="card">
+        <div class="canvas-wrap">
+          <svg id="bc-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+          <p class="empty" id="bc-empty" hidden>Escribe un valor para ver tu código de barras.</p>
+        </div>
+        <div class="meta" id="bc-meta"></div>
+        <ul class="warn" id="bc-warn"></ul>
+        <div class="btns">
+          <button type="button" class="btn primary" data-save="bc:png" disabled>Guardar PNG</button>
+          <button type="button" class="btn" data-save="bc:svg" disabled>Guardar SVG</button>
+          <button type="button" class="btn" data-save="bc:jpg" disabled>Guardar JPG</button>
+        </div>
+        <div class="status" id="bc-status" role="status" aria-live="polite"></div>
+        <p class="note" id="bc-nodl" hidden>Guardar archivos no está disponible en esta vista. Abre el artefacto en una pestaña del navegador para descargar.</p>
+      </div>
+    </aside>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script>
+(function(){
+'use strict';
+var $ = function(id){ return document.getElementById(id); };
+var today = function(){ return new Date().toISOString().slice(0,10); };
+
+/* ---------- utilidades de color ---------- */
+function lum(hex){
+  var n = parseInt(hex.slice(1),16);
+  var c = [(n>>16)&255,(n>>8)&255,n&255].map(function(v){ v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); });
+  return 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2];
+}
+function contrast(a,b){ var x=lum(a), y=lum(b); return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05); }
+function addMsg(ul,kind,text){ var li=document.createElement('li'); if(kind==='err') li.className='err'; li.textContent=text; ul.appendChild(li); }
+function colorWarnings(ul,fg,bg){
+  var r = contrast(fg,bg);
+  if(r < 3) addMsg(ul,'warn','Contraste bajo (' + r.toFixed(1) + ':1). Usa colores más distintos para que un lector lo detecte.');
+  else if(lum(fg) > lum(bg)) addMsg(ul,'warn','El código es más claro que el fondo. Algunos lectores no leen códigos invertidos.');
+}
+
+/* ---------- guardado ---------- */
+var DL = null, dlReady = false;
+var canSave = { qr:false, bc:false };
+function setStatus(el,msg,kind){ el.textContent = msg || ''; el.className = 'status' + (kind ? ' ' + kind : ''); }
+function updateButtons(){
+  document.querySelectorAll('[data-save]').forEach(function(b){
+    var kind = b.dataset.save.split(':')[0];
+    b.disabled = !(DL && canSave[kind]);
+    b.hidden = dlReady && !DL;
+  });
+  $('qr-nodl').hidden = !(dlReady && !DL);
+  $('bc-nodl').hidden = !(dlReady && !DL);
+}
+async function saveFile(statusEl, filename, makeBlob){
+  if(!DL) return;
+  try{
+    setStatus(statusEl,'Preparando archivo…');
+    var data = await makeBlob();
+    if(!data) throw { code:'bad_request' };
+    await DL.save({ filename:filename, data:data });
+    setStatus(statusEl,'Guardado: ' + filename,'ok');
+  }catch(e){
+    var c = e && e.code;
+    if(c === 'declined') setStatus(statusEl,'Cancelaste el guardado.');
+    else if(c === 'rate_limited') setStatus(statusEl,'Hay otro aviso abierto. Espera un momento e intenta de nuevo.');
+    else setStatus(statusEl,'No se pudo guardar el archivo. Revisa el contenido e intenta de nuevo.','err');
+  }
+}
+(async function(){
+  try{
+    var cl = window.claude;
+    DL = (cl && cl.use) ? await cl.use('downloads') : null;
+  }catch(e){ DL = null; }
+  dlReady = true;
+  updateButtons();
+})();
+
+/* =====================================================
+   QR
+   ===================================================== */
+function esc(s,re){ return s.replace(re,'\\$1'); }
+var TYPES = {
+  url:{ fields:[{id:'url',label:'Dirección web',kind:'text',value:'https://example.com',ph:'https://tusitio.com',wide:true}],
+    build:function(v){ var u=v.url.trim(); if(!u) return ''; return /^[a-z][a-z0-9+.-]*:/i.test(u) ? u : 'https://'+u; } },
+  text:{ fields:[{id:'text',label:'Texto',kind:'textarea',value:'',ph:'Escribe lo que quieras…',wide:true}],
+    build:function(v){ return v.text; } },
+  wifi:{ fields:[
+      {id:'ssid',label:'Nombre de la red (SSID)',kind:'text',value:'',wide:true},
+      {id:'pass',label:'Contraseña',kind:'text',value:''},
+      {id:'sec',label:'Seguridad',kind:'select',value:'WPA',options:[['WPA','WPA / WPA2 / WPA3'],['WEP','WEP'],['nopass','Sin contraseña']]},
+      {id:'hidden',label:'Visibilidad',kind:'select',value:'false',options:[['false','Red visible'],['true','Red oculta']]}
+    ],
+    build:function(v){
+      if(!v.ssid) return '';
+      var e = function(s){ return esc(s,/([\\;,:"])/g); };
+      return 'WIFI:T:' + v.sec + ';S:' + e(v.ssid) + ';' + (v.sec!=='nopass' ? 'P:' + e(v.pass) + ';' : '') + (v.hidden==='true' ? 'H:true;' : '') + ';';
+    } },
+  whatsapp:{ fields:[
+      {id:'num',label:'Número con código de país',kind:'tel',value:'',ph:'521234567890',wide:true},
+      {id:'msg',label:'Mensaje (opcional)',kind:'textarea',value:'',wide:true}
+    ],
+    build:function(v){
+      var d = v.num.replace(/\D/g,''); if(!d) return '';
+      return 'https://wa.me/' + d + (v.msg ? '?text=' + encodeURIComponent(v.msg) : '');
+    } },
+  email:{ fields:[
+      {id:'to',label:'Correo de destino',kind:'email',value:'',wide:true},
+      {id:'subject',label:'Asunto',kind:'text',value:'',wide:true},
+      {id:'body',label:'Mensaje',kind:'textarea',value:'',wide:true}
+    ],
+    build:function(v){
+      if(!v.to.trim()) return '';
+      var p=[]; if(v.subject) p.push('subject='+encodeURIComponent(v.subject)); if(v.body) p.push('body='+encodeURIComponent(v.body));
+      return 'mailto:' + v.to.trim() + (p.length ? '?' + p.join('&') : '');
+    } },
+  tel:{ fields:[{id:'num',label:'Teléfono',kind:'tel',value:'',ph:'+52 123 456 7890',wide:true}],
+    build:function(v){ var n=v.num.replace(/\s+/g,''); return n ? 'tel:'+n : ''; } },
+  sms:{ fields:[
+      {id:'num',label:'Teléfono',kind:'tel',value:'',wide:true},
+      {id:'msg',label:'Mensaje',kind:'textarea',value:'',wide:true}
+    ],
+    build:function(v){ var n=v.num.replace(/\s+/g,''); return n ? 'SMSTO:' + n + ':' + v.msg : ''; } },
+  vcard:{ fields:[
+      {id:'first',label:'Nombre',kind:'text',value:''},
+      {id:'last',label:'Apellidos',kind:'text',value:''},
+      {id:'org',label:'Empresa',kind:'text',value:''},
+      {id:'title',label:'Puesto',kind:'text',value:''},
+      {id:'tel',label:'Teléfono',kind:'tel',value:''},
+      {id:'email',label:'Correo',kind:'email',value:''},
+      {id:'url',label:'Sitio web',kind:'text',value:'',wide:true}
+    ],
+    build:function(v){
+      if(!v.first && !v.last && !v.org) return '';
+      var e = function(s){ return s.replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n'); };
+      var L = ['BEGIN:VCARD','VERSION:3.0','N:' + e(v.last) + ';' + e(v.first) + ';;;','FN:' + e((v.first + ' ' + v.last).trim() || v.org)];
+      if(v.org) L.push('ORG:' + e(v.org));
+      if(v.title) L.push('TITLE:' + e(v.title));
+      if(v.tel) L.push('TEL;TYPE=CELL:' + v.tel.replace(/\s+/g,''));
+      if(v.email) L.push('EMAIL:' + v.email.trim());
+      if(v.url) L.push('URL:' + v.url.trim());
+      L.push('END:VCARD');
+      return L.join('\n');
+    } },
+  geo:{ fields:[
+      {id:'lat',label:'Latitud',kind:'text',value:'',ph:'19.4326'},
+      {id:'lng',label:'Longitud',kind:'text',value:'',ph:'-99.1332'}
+    ],
+    build:function(v){
+      var a = parseFloat(v.lat), b = parseFloat(v.lng);
+      if(!isFinite(a) || !isFinite(b) || Math.abs(a) > 90 || Math.abs(b) > 180) return '';
+      return 'geo:' + a + ',' + b;
+    } }
+};
+var vals = {};
+Object.keys(TYPES).forEach(function(k){ vals[k] = {}; TYPES[k].fields.forEach(function(f){ vals[k][f.id] = f.value; }); });
+var qrType = 'url';
+
+var S = { dots:'square', csq:'square', cdot:'square', fg:'#000000', eye:'#000000', bg:'#ffffff',
+          grad:false, fg2:'#0e6b5b', logo:'', logoSize:30, size:1024, margin:16, ecl:'M' };
+var eyeTouched = false;
+
+function renderFields(){
+  var box = $('qr-fields'); box.replaceChildren();
+  TYPES[qrType].fields.forEach(function(f){
+    var wrap = document.createElement('div'); wrap.className = 'field' + (f.wide ? ' wide' : '');
+    var id = 'f-' + qrType + '-' + f.id;
+    var lab = document.createElement('label'); lab.className = 'lbl'; lab.htmlFor = id; lab.textContent = f.label;
+    var el;
+    if(f.kind === 'textarea'){ el = document.createElement('textarea'); }
+    else if(f.kind === 'select'){
+      el = document.createElement('select');
+      f.options.forEach(function(o){ var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; el.appendChild(op); });
+    } else { el = document.createElement('input'); el.type = f.kind; el.autocomplete = 'off'; }
+    el.id = id;
+    if(f.ph) el.placeholder = f.ph;
+    el.value = vals[qrType][f.id];
+    el.addEventListener('input', function(){ vals[qrType][f.id] = el.value; scheduleQR(); });
+    wrap.appendChild(lab); wrap.appendChild(el); box.appendChild(wrap);
+  });
+}
+function payload(){ return TYPES[qrType].build(vals[qrType]); }
+
+function qrOpts(type,size,data){
+  var o = {
+    width:size, height:size, type:type, data:data, margin:S.margin,
+    qrOptions:{ errorCorrectionLevel: S.logo ? 'H' : S.ecl },
+    imageOptions:{ hideBackgroundDots:true, imageSize:S.logoSize/100, margin:6, crossOrigin:'anonymous' },
+    dotsOptions:{ type:S.dots, color:S.fg },
+    backgroundOptions:{ color:S.bg },
+    cornersSquareOptions:{ type:S.csq, color:S.eye },
+    cornersDotOptions:{ type:S.cdot, color:S.eye }
+  };
+  if(S.logo) o.image = S.logo;
+  if(S.grad) o.dotsOptions.gradient = { type:'linear', rotation:Math.PI/4, colorStops:[{offset:0,color:S.fg},{offset:1,color:S.fg2}] };
+  return o;
+}
+
+var qrTimer;
+function scheduleQR(){ clearTimeout(qrTimer); qrTimer = setTimeout(renderQR, 110); }
+function renderQR(){
+  var box = $('qr-canvas'), warn = $('qr-warn'), meta = $('qr-meta');
+  box.replaceChildren(); warn.replaceChildren(); canSave.qr = false;
+  var data = payload();
+  $('qr-empty').hidden = !!data;
+  if(!data){ meta.textContent = ''; updateButtons(); return; }
+  if(typeof QRCodeStyling === 'undefined'){
+    addMsg(warn,'err','No se pudo cargar el generador de QR. Revisa tu conexión y recarga la página.');
+    updateButtons(); return;
+  }
+  try{
+    var qr = new QRCodeStyling(qrOpts('svg', S.size, data));
+    qr.append(box);
+    canSave.qr = true;
+    var bytes = new TextEncoder().encode(data).length;
+    meta.textContent = 'QR · ' + bytes + ' bytes · corrección ' + (S.logo ? 'H' : S.ecl) + ' · ' + S.size + ' px';
+    colorWarnings(warn, S.fg, S.bg);
+    if(S.margin < 8) addMsg(warn,'warn','Margen muy chico. Deja al menos 8 px para que los lectores encuentren el código.');
+    if(bytes > 1200) addMsg(warn,'warn','Mucho contenido: los puntos salen muy chicos y cuesta más escanearlo.');
+  }catch(e){
+    box.replaceChildren();
+    addMsg(warn,'err','El contenido es demasiado largo para un código QR. Acórtalo e intenta de nuevo.');
+    meta.textContent = '';
+  }
+  updateButtons();
+}
+async function qrBlob(ext){
+  var type = ext === 'svg' ? 'svg' : 'canvas';
+  var q = new QRCodeStyling(qrOpts(type, S.size, payload()));
+  return await q.getRawData(ext === 'jpg' ? 'jpeg' : ext);
+}
+
+function syncQROutputs(){
+  $('out-logoSize').textContent = S.logoSize + ' %';
+  $('out-size').textContent = S.size + ' px';
+  $('out-margin').textContent = S.margin + ' px';
+  $('fg2-field').hidden = !S.grad;
+  $('ecl').disabled = !!S.logo;
+  $('logo-clear').hidden = !S.logo;
+}
+document.querySelectorAll('[data-qr]').forEach(function(el){
+  el.addEventListener('input', function(){
+    var k = el.dataset.qr;
+    var v = el.type === 'checkbox' ? el.checked : (el.type === 'range' ? +el.value : el.value);
+    S[k] = v;
+    if(k === 'eye') eyeTouched = true;
+    if(k === 'fg' && !eyeTouched){ S.eye = S.fg; $('eye').value = S.fg; }
+    syncQROutputs(); scheduleQR();
+  });
+});
+$('qr-type').addEventListener('change', function(e){ qrType = e.target.value; renderFields(); scheduleQR(); });
+$('logo').addEventListener('change', function(e){
+  var f = e.target.files && e.target.files[0];
+  if(!f) return;
+  if(f.size > 2*1024*1024){ $('logo-name').textContent = 'La imagen pesa más de 2 MB. Elige una más liviana.'; e.target.value = ''; return; }
+  var r = new FileReader();
+  r.onload = function(){ S.logo = String(r.result); $('logo-name').textContent = f.name; syncQROutputs(); scheduleQR(); };
+  r.readAsDataURL(f);
+});
+$('logo-clear').addEventListener('click', function(){
+  S.logo = ''; $('logo').value = ''; $('logo-name').textContent = ''; syncQROutputs(); scheduleQR();
+});
+
+/* =====================================================
+   CÓDIGO DE BARRAS
+   ===================================================== */
+var FORMATS = {
+  CODE128:{ name:'Code 128', hint:'Acepta texto y números. Es el más versátil.', ex:'ABC-123456' },
+  CODE39:{ name:'Code 39', hint:'Mayúsculas, números y los símbolos - . $ / + % y espacio.', ex:'CODE-39' },
+  EAN13:{ name:'EAN-13', hint:'12 o 13 dígitos. El último es el dígito verificador y debe ser correcto si lo incluyes.', ex:'5901234123457' },
+  EAN8:{ name:'EAN-8', hint:'7 u 8 dígitos, con verificador al final.', ex:'96385074' },
+  UPC:{ name:'UPC-A', hint:'11 o 12 dígitos, con verificador al final.', ex:'123456789012' },
+  ITF14:{ name:'ITF-14', hint:'13 o 14 dígitos, usado en cajas y embalaje.', ex:'15400141288763' },
+  ITF:{ name:'ITF', hint:'Solo dígitos, en cantidad par.', ex:'123456' },
+  MSI:{ name:'MSI', hint:'Solo dígitos.', ex:'1234567' },
+  pharmacode:{ name:'Pharmacode', hint:'Un número entero entre 3 y 131070.', ex:'1234' },
+  codabar:{ name:'Codabar', hint:'Dígitos y - $ : / . +, con una letra A a D al inicio y al final.', ex:'A123456B' }
+};
+var B = { format:'CODE128', value:'ABC-123456', width:3, height:100, margin:10, show:true, text:'', font:20, pos:'bottom', align:'center', fg:'#000000', bg:'#ffffff' };
+
+function bcOpts(k){
+  return {
+    format:B.format, width:B.width*k, height:B.height*k, margin:B.margin*k,
+    displayValue:B.show, text:(B.text || undefined), fontSize:B.font*k, textMargin:2*k,
+    textPosition:B.pos, textAlign:B.align, font:'monospace',
+    lineColor:B.fg, background:B.bg
+  };
+}
+function validFor(v,f){
+  var ok = true;
+  try{ JsBarcode(document.createElementNS('http://www.w3.org/2000/svg','svg'), v, { format:f, valid:function(x){ if(!x) ok = false; } }); }
+  catch(e){ ok = false; }
+  return ok;
+}
+function renderBC(){
+  var svg = $('bc-svg'), warn = $('bc-warn'), meta = $('bc-meta');
+  var F = FORMATS[B.format];
+  warn.replaceChildren(); canSave.bc = false;
+  $('bc-hint').textContent = F.hint;
+  $('bc-hint').hidden = false;
+  if(typeof JsBarcode === 'undefined'){
+    svg.hidden = true; $('bc-empty').hidden = true;
+    addMsg(warn,'err','No se pudo cargar el generador de códigos de barras. Revisa tu conexión y recarga la página.');
+    updateButtons(); return;
+  }
+  if(!B.value){
+    svg.hidden = true; $('bc-empty').hidden = false; meta.textContent = '';
+    updateButtons(); return;
+  }
+  $('bc-empty').hidden = true;
+  var ok = true;
+  try{ JsBarcode(svg, B.value, Object.assign(bcOpts(1), { valid:function(v){ if(!v) ok = false; } })); }
+  catch(e){ ok = false; }
+  if(!ok){
+    svg.hidden = true; meta.textContent = '';
+    addMsg(warn,'err','Ese valor no sirve para ' + F.name + '. ' + F.hint);
+    updateButtons(); return;
+  }
+  svg.hidden = false; canSave.bc = true;
+  meta.textContent = F.name + ' · ' + B.value.length + ' caracteres';
+  colorWarnings(warn, B.fg, B.bg);
+  updateButtons();
+}
+function bcBlob(ext){
+  if(ext === 'svg'){
+    var svg = $('bc-svg');
+    var s = new XMLSerializer().serializeToString(svg);
+    return Promise.resolve(new Blob([s], { type:'image/svg+xml' }));
+  }
+  var c = document.createElement('canvas');
+  JsBarcode(c, B.value, bcOpts(3));
+  var mime = ext === 'jpg' ? 'image/jpeg' : 'image/png';
+  return new Promise(function(res){ c.toBlob(res, mime, 0.95); });
+}
+function syncBCOutputs(){
+  $('out-bc-width').textContent = B.width;
+  $('out-bc-height').textContent = B.height;
+  $('out-bc-margin').textContent = B.margin;
+  $('out-bc-font').textContent = B.font;
+  ['bc-text','bc-font','bc-pos','bc-align'].forEach(function(id){ $(id).disabled = !B.show; });
+}
+document.querySelectorAll('[data-bc]').forEach(function(el){
+  el.addEventListener('input', function(){
+    var k = el.dataset.bc;
+    var v = el.type === 'checkbox' ? el.checked : (el.type === 'range' ? +el.value : el.value);
+    B[k] = v;
+    if(k === 'format' && !validFor(B.value, B.format)){
+      B.value = FORMATS[B.format].ex; $('bc-value').value = B.value;
+    }
+    syncBCOutputs(); renderBC();
+  });
+});
+
+/* ---------- botones de guardado ---------- */
+document.querySelectorAll('[data-save]').forEach(function(b){
+  b.addEventListener('click', function(){
+    var p = b.dataset.save.split(':'), kind = p[0], ext = p[1];
+    if(kind === 'qr'){
+      saveFile($('qr-status'), 'qr-' + qrType + '-' + today() + '.' + ext, function(){ return qrBlob(ext); });
+    } else {
+      saveFile($('bc-status'), 'barras-' + B.format.toLowerCase() + '-' + today() + '.' + ext, function(){ return bcBlob(ext); });
+    }
+  });
+});
+
+/* ---------- pestañas ---------- */
+function showTab(name){
+  var qr = name !== 'barras';
+  $('view-qr').hidden = !qr; $('view-barras').hidden = qr;
+  $('tab-qr').setAttribute('aria-selected', String(qr));
+  $('tab-barras').setAttribute('aria-selected', String(!qr));
+}
+$('tab-qr').addEventListener('click', function(){ location.hash = 'qr'; });
+$('tab-barras').addEventListener('click', function(){ location.hash = 'barras'; });
+window.addEventListener('hashchange', function(){ showTab(location.hash.slice(1)); });
+
+/* ---------- arranque ---------- */
+renderFields(); syncQROutputs(); syncBCOutputs();
+showTab(location.hash.slice(1));
+renderQR(); renderBC();
+})();
+</script>
+
+</body></html>
